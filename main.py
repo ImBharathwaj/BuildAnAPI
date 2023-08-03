@@ -1,6 +1,6 @@
 from random import randrange
 from typing import Optional
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel
 
@@ -15,7 +15,41 @@ class Post(BaseModel):
     rating: Optional[int] = None
 
 
-my_post = []
+my_post = [
+    # {
+    #     "title": "Post 1 title",
+    #     "content": "Post 1 content",
+    #     "published": True,
+    #     "rating": -10,
+    #     "id": 1,
+    # },
+    # {
+    #     "title": "Post 2 title",
+    #     "content": "Post 2 content",
+    #     "published": True,
+    #     "rating": -10,
+    #     "id": 2,
+    # },
+    # {
+    #     "title": "Post 3 title",
+    #     "content": "Post 3 content",
+    #     "published": True,
+    #     "rating": -10,
+    #     "id": 3,
+    # },
+]
+
+
+def find_post(id: int):
+    for p in my_post:
+        if p["id"] == id:
+            return p
+
+
+def find_index_post(id: int):
+    for i, p in enumerate(my_post):
+        if p["id"] == id:
+            return i
 
 
 @app.get("/")
@@ -23,32 +57,66 @@ def read_root():
     return {"key": "value"}
 
 
+@app.post("/createpost", status_code=status.HTTP_201_CREATED)
+# payLoad: dict = Body(...)
+# ^ Basic method to get data out of the body without using any framework
+def createpost(post: Post):
+    post_dict = post.model_dump()
+    post_dict["id"] = randrange(0, 100000000)
+    my_post.append(post_dict)
+    return {"post": my_post}
+
+
 @app.get("/posts")
 def works():
     return {"data": my_post}
 
 
-def find_post(id):
-    for i in my_post:
-        # print(id)
-        if i["id"] == id:
-            return i
-        return {"Data": "Not found"}
+@app.get("/posts/latest")
+def get_latest_post():
+    post = my_post[len(my_post) - 1]
+    return {"post": post}
 
 
 @app.get("/posts/{id}")
-def get_post(id):
-    post = find_post(str(id))
-    print(post)
-    print(type(post))
+def get_post(id: int, response: Response):
+    post = find_post(id)
+    if not post:
+        # response.status_code = status.HTTP_404_NOT_FOUND
+        # return {"message": f"Post with {id} was not found"}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Post with {id} was not found",
+        )
     return {"post_detail": post}
 
 
-@app.post("/createpost")
-# payLoad: dict = Body(...)
-# ^ Basic method to get data out of the body without using any framework
-def createpost(post: Post):
+# Deleting a post
+@app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(id: int):
+    # Find an index of the post for the respective id in the list
+    index = find_index_post(id)
+    if index == None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Post with {id} does not exists",
+        )
+    my_post.pop(index)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# Update Post
+@app.put("/posts/{id}")
+def update_post(id: int, post: Post):
+    print(post)
+    # Find an index of the post for the respective id in the list
+    index = find_index_post(id)
+    if index == None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Post with {id} does not exists",
+        )
     post_dict = post.model_dump()
-    post_dict["id"] = str(randrange(0, 100000000))
-    my_post.append(post_dict)
-    return {"post": my_post}
+    post_dict['id'] = id
+    my_post[index] = post_dict
+    return {"data": "Updated successfully"}
