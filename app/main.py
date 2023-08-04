@@ -16,27 +16,27 @@ class Post(BaseModel):
 
 
 my_post = [
-    # {
-    #     "title": "Post 1 title",
-    #     "content": "Post 1 content",
-    #     "published": True,
-    #     "rating": -10,
-    #     "id": 1,
-    # },
-    # {
-    #     "title": "Post 2 title",
-    #     "content": "Post 2 content",
-    #     "published": True,
-    #     "rating": -10,
-    #     "id": 2,
-    # },
-    # {
-    #     "title": "Post 3 title",
-    #     "content": "Post 3 content",
-    #     "published": True,
-    #     "rating": -10,
-    #     "id": 3,
-    # },
+    {
+        "title": "I am the great",
+        "content": "MLK is a great person",
+        "published": True,
+        "rating": -10,
+        "id": 1
+    },
+    {
+        "title": "I am the great",
+        "content": "Mike is a great person",
+        "published": True,
+        "rating": -10,
+        "id": 2
+    },
+    {
+        "title": "I am the great",
+        "content": "Ali is a great person",
+        "published": True,
+        "rating": -10,
+        "id": 3
+    },
 ]
 
 
@@ -68,7 +68,7 @@ def createpost(post: Post):
 
 
 @app.get("/posts")
-def works():
+def posts():
     return {"data": my_post}
 
 
@@ -117,6 +117,6 @@ def update_post(id: int, post: Post):
             detail=f"Post with {id} does not exists",
         )
     post_dict = post.model_dump()
-    post_dict['id'] = id
+    post_dict["id"] = id
     my_post[index] = post_dict
     return {"data": "Updated successfully"}
