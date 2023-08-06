@@ -1,8 +1,12 @@
+import time
 from random import randrange
 from typing import Optional
 from fastapi import FastAPI, Response, status, HTTPException
 from fastapi.params import Body
 from pydantic import BaseModel
+import psycopg2
+from psycopg2.extensions import connection
+from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
 
@@ -15,27 +19,40 @@ class Post(BaseModel):
     rating: Optional[int] = None
 
 
+while True:
+    try:
+        conn = psycopg2.connect(
+            host="localhost", dbname="fastapi", user="postgres", password="root"
+        )
+        cursor = conn.cursor()
+        print("Database connected succefully!")
+        break
+    except Exception as err:
+        print(f"Error occurred while connecting database!")
+        print(f"Error: {err}")
+        time.sleep(2)
+
 my_post = [
     {
         "title": "I am the great",
         "content": "MLK is a great person",
         "published": True,
         "rating": -10,
-        "id": 1
+        "id": 1,
     },
     {
         "title": "I am the great",
         "content": "Mike is a great person",
         "published": True,
         "rating": -10,
-        "id": 2
+        "id": 2,
     },
     {
         "title": "I am the great",
         "content": "Ali is a great person",
         "published": True,
         "rating": -10,
-        "id": 3
+        "id": 3,
     },
 ]
 
@@ -61,15 +78,19 @@ def read_root():
 # payLoad: dict = Body(...)
 # ^ Basic method to get data out of the body without using any framework
 def createpost(post: Post):
-    post_dict = post.model_dump()
-    post_dict["id"] = randrange(0, 100000000)
-    my_post.append(post_dict)
-    return {"post": my_post}
+    query_str = f"""INSERT INTO posts(title, content, published) VALUES('{post.title}', '{post.content}', '{post.published}') RETURNING *;"""
+    cursor.execute(query=query_str)
+    new_post = cursor.fetchone()
+    conn.commit()
+    return {"post": new_post}
 
 
+# Getting all post out from posts table
 @app.get("/posts")
 def posts():
-    return {"data": my_post}
+    cursor.execute("""SELECT * FROM posts;""")
+    posts = cursor.fetchall()
+    return {"data": posts}
 
 
 @app.get("/posts/latest")
@@ -80,7 +101,9 @@ def get_latest_post():
 
 @app.get("/posts/{id}")
 def get_post(id: int, response: Response):
-    post = find_post(id)
+    query_str = f"""SELECT * FROM posts WHERE id = {id}"""
+    cursor.execute(query=query_str)
+    post = cursor.fetchone()
     if not post:
         # response.status_code = status.HTTP_404_NOT_FOUND
         # return {"message": f"Post with {id} was not found"}
@@ -94,29 +117,29 @@ def get_post(id: int, response: Response):
 # Deleting a post
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int):
-    # Find an index of the post for the respective id in the list
-    index = find_index_post(id)
-    if index == None:
+    query_str = f"""DELETE FROM posts WHERE id = {id} RETURNING *"""
+    cursor.execute(query=query_str)
+    post = cursor.fetchone()
+    conn.commit()
+    if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Post with {id} does not exists",
         )
-    my_post.pop(index)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # Update Post
 @app.put("/posts/{id}")
 def update_post(id: int, post: Post):
-    print(post)
-    # Find an index of the post for the respective id in the list
-    index = find_index_post(id)
-    if index == None:
+    query_str = f"""UPDATE posts SET title='{post.title}', content='{post.content}', published='{post.published}' WHERE id = {id} RETURNING *"""
+    cursor.execute(query=query_str)
+    post = cursor.fetchone()
+    conn.commit()
+
+    if not post:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Post with {id} does not exists",
         )
-    post_dict = post.model_dump()
-    post_dict["id"] = id
-    my_post[index] = post_dict
     return {"data": "Updated successfully"}
