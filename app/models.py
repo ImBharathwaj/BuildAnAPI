@@ -4,6 +4,8 @@ from .database import Base
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 
 
+# SQL Alchemy models 
+# This shows how our table look like
 class Post(Base):
     __tablename__ = "posts"
 

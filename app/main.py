@@ -10,7 +10,7 @@ import psycopg2
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
 from .database import engine, get_db
-from . import models
+from . import models, schemas
 from sqlalchemy.orm import Session
 
 # Creating an instance for application with FastAPI class
@@ -18,13 +18,6 @@ app = FastAPI()
 
 # Binding database with engine and
 models.Base.metadata.create_all(bind=engine)
-
-
-# Creating a schema for the post which is going to be passed into the API
-class Post(BaseModel):
-    title: str
-    content: str
-    published: bool = True
 
 
 while True:
@@ -47,7 +40,7 @@ def read_root():
 
 
 @app.post("/createpost", status_code=status.HTTP_201_CREATED)
-def createpost(post: Post, db: Session = Depends(get_db)):
+def createpost(post: schemas.PostCreate, db: Session = Depends(get_db)):
     new_post = models.Post(**post.model_dump())
     db.add(new_post)
     db.commit()
@@ -57,7 +50,7 @@ def createpost(post: Post, db: Session = Depends(get_db)):
 @app.get("/posts")
 def posts(db: Session = Depends(get_db)):
     posts = db.query(models.Post).all()
-    return {"Data": posts}
+    return posts
 
 
 @app.get("/posts/{id}")
@@ -69,7 +62,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Post with {id} was not found",
         )
-    return {"post_detail": post}
+    return post
 
 
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -87,7 +80,9 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/posts/{id}")
-def update_post(id: int, updated_post: Post, db: Session = Depends(get_db)):
+def update_post(
+    id: int, updated_post: schemas.PostUpdate, db: Session = Depends(get_db)
+):
     post_query = db.query(models.Post).filter(models.Post.id == id)
     post = post_query.first()
 
@@ -101,4 +96,4 @@ def update_post(id: int, updated_post: Post, db: Session = Depends(get_db)):
 
     db.commit()
 
-    return {"data": post_query.first()}
+    return post_query.first()
