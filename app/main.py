@@ -1,7 +1,9 @@
+import asyncio
 import time
+import json
 from random import randrange
 from typing import Optional
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Request, Response, status, HTTPException
 from fastapi.params import Body, Depends
 from pydantic import BaseModel
 import psycopg2
@@ -61,7 +63,6 @@ def posts(db: Session = Depends(get_db)):
 @app.get("/posts/{id}")
 def get_post(id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == id).first()
-    # print("From get one method: ", post)
     print(type(post))
     if not post:
         raise HTTPException(
@@ -74,6 +75,7 @@ def get_post(id: int, db: Session = Depends(get_db)):
 @app.delete("/posts/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id: int, db: Session = Depends(get_db)):
     post = db.query(models.Post).filter(models.Post.id == id)
+    print(type(post))
     if post.first() == None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -85,15 +87,18 @@ def delete_post(id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/posts/{id}")
-def update_post(id: int, db: Session = Depends(get_db)):
-    post = db.query(models.Post).filter(models.Post.id == id)
+def update_post(id: int, updated_post: Post, db: Session = Depends(get_db)):
+    post_query = db.query(models.Post).filter(models.Post.id == id)
+    post = post_query.first()
+
     if post == None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Post with {id} does not exists",
         )
-    # print(type(post))
-    # post.update(, synchronize_session=False)
+
+    post_query.update(updated_post.dict(), synchronize_session=False)
 
     db.commit()
-    return {"data": post}
+
+    return {"data": post_query.first()}
